@@ -58,7 +58,6 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "User Images", href: "/user-images", icon: Images },
-    { name: "Settings", href: "/settings", icon: Settings },
   ]
 
   return (

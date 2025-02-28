@@ -182,6 +182,7 @@ async function findBestMatch(targetImage: string | File | FormData, referenceIma
     return {
       status: (bestMatch.confidence ?? 0) >= (1 - tolerance) ? "match_found" : "no_match_found",
       bestMatch: bestMatch,
+      confidence: bestMatch.confidence,
       message: (bestMatch.confidence ?? 0) >= (1 - tolerance) 
         ? `Best match found with ${((bestMatch.confidence ?? 0) * 100).toFixed(2)}% confidence` 
         : `No match found above threshold. Best candidate has ${((bestMatch.confidence ?? 0) * 100).toFixed(2)}% confidence`,

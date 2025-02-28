@@ -9,34 +9,37 @@ import { findBestMatch } from "@/lib/apiService/faceService"
 import { getAllImages } from "@/lib/apiService/service"
 import { supabase } from "@/lib/supabase"
 
-// interface ScanResultProps {
-//   result: {
-//     type: string
-//     id?: string
-//   } | null
-//   file: File | null
-// }
+interface ScanResultProps {
+  result: {
+    type: string
+    id?: string
+  } | null
+  file: File | null
+}
 
-export function ScanResult() {
+export function ScanResult({ result, file }: ScanResultProps = { result: null, file: null }) {
   const [comparing, setComparing] = useState(false)
   const [comparisonResult, setComparisonResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [uploadedImage, setUploadedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [bestMatchImage, setBestMatchImage] = useState<string | null>(null)
+  const [confidence, setConfidence] = useState<number | null>(null)
 
-  // Handle file upload
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null
+  // Set uploaded image when file prop changes
+  useEffect(() => {
     if (file) {
       setUploadedImage(file)
       setComparisonResult(null)
       setError(null)
+      setBestMatchImage(null)
+      setConfidence(null)
       
       // Create preview URL
       const previewUrl = URL.createObjectURL(file)
       setImagePreview(previewUrl)
     }
-  }
+  }, [file])
 
   // Clean up preview URL when component unmounts
   useEffect(() => {
@@ -46,6 +49,21 @@ export function ScanResult() {
       }
     }
   }, [imagePreview])
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0] || null
+    if (selectedFile) {
+      setUploadedImage(selectedFile)
+      setComparisonResult(null)
+      setError(null)
+      setBestMatchImage(null)
+      setConfidence(null)
+      
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(selectedFile)
+      setImagePreview(previewUrl)
+    }
+  }
 
   const compareSelfie = async () => {
     if (!uploadedImage) {
@@ -57,12 +75,14 @@ export function ScanResult() {
       setComparing(true)
       setComparisonResult(null)
       setError(null)
+      setBestMatchImage(null)
+      setConfidence(null)
 
       const user = await supabase.auth.getUser()
       if (!user.data.user?.id) {
         throw new Error("User not found")
       }
-      const referenceImages = await getAllImages("1")
+      const referenceImages = await getAllImages(user.data.user?.id)
 
       if (!referenceImages.data || referenceImages.data.length === 0) {
         throw new Error("No reference images found")
@@ -73,10 +93,17 @@ export function ScanResult() {
       const formData = new FormData()
       formData.append('image', uploadedImage)
       
-      const bestMatch = await findBestMatch(formData, referenceImageUrls)
+      const result = await findBestMatch(formData, referenceImageUrls)
       
-      if (bestMatch.status === "match") {
-        setComparisonResult(`Match found with ${(bestMatch.bestMatch!.confidence! * 100).toFixed(2)}% confidence`)
+      if (result.bestMatch && result.bestMatch.publicUrl) {
+        setBestMatchImage(result.bestMatch.publicUrl)
+        setConfidence(result.bestMatch.confidence || 0)
+        
+        if (result.status === "match_found") {
+          setComparisonResult(`Match found with ${((result.bestMatch.confidence || 0) * 100).toFixed(2)}% confidence`)
+        } else {
+          setComparisonResult(`No match found above threshold. Best candidate has ${((result.bestMatch.confidence || 0) * 100).toFixed(2)}% confidence`)
+        }
       } else {
         setComparisonResult("No match found")
       }
@@ -116,14 +143,37 @@ export function ScanResult() {
             />
           </div>
           
-          {/* Image preview */}
+          {/* Image comparison section */}
           {imagePreview && (
-            <div className="mt-4 w-full max-w-xs">
-              <img 
-                src={imagePreview} 
-                alt="Preview" 
-                className="w-full h-auto rounded-md border border-border"
-              />
+            <div className="mt-4 w-full">
+              <div className="flex flex-col md:flex-row gap-4 items-center justify-center">
+                {/* Uploaded image */}
+                <div className="w-full max-w-xs">
+                  <h3 className="text-sm font-medium mb-2">Your Selfie</h3>
+                  <img 
+                    src={imagePreview} 
+                    alt="Your selfie" 
+                    className="w-full h-auto rounded-md border border-border object-cover aspect-square"
+                  />
+                </div>
+                
+                {/* Best match image */}
+                {bestMatchImage && (
+                  <div className="w-full max-w-xs">
+                    <h3 className="text-sm font-medium mb-2">Best Match</h3>
+                    <img 
+                      src={bestMatchImage} 
+                      alt="Best match" 
+                      className="w-full h-auto rounded-md border border-border object-cover aspect-square"
+                    />
+                    {confidence !== null && (
+                      <div className="mt-2 text-sm font-medium">
+                        Confidence: {(confidence * 100).toFixed(2)}%
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

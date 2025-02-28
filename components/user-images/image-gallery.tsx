@@ -14,7 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { getAllImages, deleteImage as deleteImageApi } from "@/lib/apiService/service"
-
+import { supabase } from "@/lib/supabase"
 interface ImageItem {
   id: string
   url: string
@@ -36,9 +36,8 @@ export function ImageGallery() {
       setLoading(true)
 
       // Get the user ID - you'll need to implement this based on your auth system
-      const userId = "1" // Replace with actual user ID from your auth context
-
-      const response = await getAllImages(userId)
+      const { data: { user } } = await supabase.auth.getUser()
+      const response = await getAllImages(user?.id || "")
 
       if (!response.success) {
         throw new Error((response.error as string) || "Failed to fetch images")

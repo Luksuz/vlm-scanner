@@ -10,6 +10,8 @@ import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { ScanResult } from "@/components/dashboard/scan-result"
+import { scanDocument } from "@/lib/apiService/scanService"
+
 export function ImageUpload() {
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
@@ -45,12 +47,13 @@ export function ImageUpload() {
       setUploading(true)
 
       // Create a unique file name
+      const bucketName = "scanned-images"
       const fileExt = file.name.split(".").pop()
       const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`
       const filePath = `${fileName}`
 
       // Upload to Supabase Storage
-      const { data, error } = await supabase.storage.from("documents").upload(filePath, file, {
+      const { data, error } = await supabase.storage.from(bucketName).upload(fileName, file, {
         cacheControl: "3600",
         upsert: false,
       })
@@ -60,7 +63,7 @@ export function ImageUpload() {
       // Get the public URL
       const {
         data: { publicUrl },
-      } = supabase.storage.from("documents").getPublicUrl(filePath)
+      } = supabase.storage.from(bucketName).getPublicUrl(fileName)
 
       return { path: filePath, url: publicUrl }
     } catch (error: any) {
@@ -71,29 +74,31 @@ export function ImageUpload() {
     }
   }
 
-  const scanDocument = async () => {
+  const scanDocumentHandler = async () => {
     try {
       setScanning(true)
       setScanResult(null)
       setError(null)
 
-      // Mock upload delay
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      // Mock different scan results
-      const resultTypes = ["selfie", "unknown", "licence plate", "national id"]
-      const randomType = resultTypes[Math.floor(Math.random() * resultTypes.length)]
-
-      const result: { type: string; id?: string } = { type: randomType }
-
-      if (randomType === "licence plate" || randomType === "national id") {
-        result.id = Math.random().toString(36).substring(2, 10).toUpperCase()
+      // First upload the image to get a path
+      const uploadResult = await uploadImage()
+      
+      if (!uploadResult) {
+        throw new Error("Failed to upload image")
       }
-
-      // Mock saving scan result
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      setScanResult(result)
+      
+      console.log("Image uploaded successfully:", uploadResult.url)
+      
+      // Now scan the uploaded document
+      const result = await scanDocument(uploadResult.url)
+      
+      console.log("Scan result:", result)
+      
+      setScanResult({
+        type: result.type,
+        id: result.id
+      })
+      
     } catch (error: any) {
       setError(error.message || "Error scanning document")
     } finally {
@@ -136,7 +141,7 @@ export function ImageUpload() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button className="w-full gap-2" onClick={scanDocument} disabled={!file || uploading || scanning}>
+          <Button className="w-full gap-2" onClick={scanDocumentHandler} disabled={!file || uploading || scanning}>
             {scanning ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -152,7 +157,32 @@ export function ImageUpload() {
         </CardFooter>
       </Card>
 
-      <ScanResult />
+      <ScanResult 
+        result={scanResult} 
+        file={scanResult?.type === "selfie" ? file : null} 
+      />
+      
+      {/* Display scan result below */}
+      {scanResult && (
+        <div className="md:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Scan Result</CardTitle>
+              <CardDescription>Results from document analysis</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col items-center justify-center gap-4 text-center">
+                <div className="rounded-lg bg-primary/10 p-4 text-primary w-full">
+                  <p className="text-lg font-medium">Document Type: {scanResult.type}</p>
+                  {scanResult.id && (
+                    <p className="mt-2">ID: {scanResult.id}</p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
