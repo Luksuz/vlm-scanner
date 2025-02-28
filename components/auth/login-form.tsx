@@ -15,11 +15,26 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-
 export function LoginForm() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const registered = searchParams.get("registered")
+  
+  // Use a state to store the search params values instead of directly using useSearchParams
+  const [registered, setRegistered] = useState<string | null>(null)
+  const [redirectTo, setRedirectTo] = useState<string>("/dashboard")
+  
+  // Get search params in useEffect to avoid the suspense boundary issue
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    const registeredParam = searchParams.get("registered")
+    const redirectParam = searchParams.get("redirectedFrom") || "/dashboard"
+    
+    setRegistered(registeredParam)
+    setRedirectTo(redirectParam)
+    
+    if (registeredParam) {
+      setSuccessMessage("Account created successfully! Please log in.")
+    }
+  }, [])
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -27,12 +42,6 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (registered) {
-      setSuccessMessage("Account created successfully! Please log in.")
-    }
-  }, [registered])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,9 +55,6 @@ export function LoginForm() {
       })
 
       if (error) throw error
-
-      // Get the redirectedFrom parameter or default to dashboard
-      const redirectTo = searchParams.get("redirectedFrom") || "/dashboard"
 
       // Navigate to the dashboard or the original requested URL
       router.push(redirectTo)
@@ -138,4 +144,3 @@ export function LoginForm() {
     </Card>
   )
 }
-
