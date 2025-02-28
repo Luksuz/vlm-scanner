@@ -1,0 +1,20 @@
+import Link from "next/link"
+import { LoginForm } from "@/components/auth/login-form"
+
+export default function LoginPage() {
+  return (
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+        <div className="container flex h-16 items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 font-bold">
+            <span className="text-primary">Document</span>Scanner
+          </Link>
+        </div>
+      </header>
+      <main className="flex-1 flex items-center justify-center p-6">
+        <LoginForm />
+      </main>
+    </div>
+  )
+}
+
